@@ -38,6 +38,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::initializeDisplay()
 {
+    ui->LE_DATASET_LOAD_PATH->setText("Datasets.csv");
     ui->LE_PARAMS_BATCH_SIZE->setText(QString().sprintf("%d", mBatchSize));
     ui->LE_PARAMS_EPOCHS->setText(QString().sprintf("%d", mEpochs));
     ui->LE_PARAMS_LAERNING_RATE->setText(QString().sprintf("%f", mLearningRate));
