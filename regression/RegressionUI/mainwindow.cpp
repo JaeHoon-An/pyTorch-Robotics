@@ -123,7 +123,6 @@ void MainWindow::on_BT_DATASET_LOAD_clicked()
     dataPath.append(DATA_DIR);
     dataPath.append(ui->LE_DATASET_LOAD_PATH->text().toStdString());
     loadData(dataPath);
-
 }
 
 void MainWindow::loadData(std::string& dataPath)
@@ -153,10 +152,9 @@ void MainWindow::loadData(std::string& dataPath)
             }
         }
         mVectorDatasets = datasets;
-        std::cout << "[DATA LOADER] Datasets are loaded." << std::endl;
         ifs.close();
         vec2tensor();
-        std::cout << "[DATA LOADER] Datasets are transferred to Tensors." << std::endl << std::endl;
+        std::cout << "[DATA LOADER] Datasets are loaded." << std::endl << std::endl;;
     }
     catch (std::string path)
     {
@@ -299,10 +297,10 @@ void MainWindow::on_BT_MODEL_ESTIMATE_clicked()
         mEstimatedValue = net->forward(inputs).item<float>();
         squaredError =  pow((mGroundTruthValue - mEstimatedValue), 2.0);
         sumOfSquaredError += squaredError;
-        mMSE = pow(squaredError, 0.5) / (i + 1);
+        mMSE = squaredError / (i + 1);
         updateDisplay();
         updateGraph();
         std::cout << "[ESTIMATION] Index : " << mEstimateIndex << "\tSquared Error : " << squaredError << "\tEstimated Value : " << mEstimatedValue << "\tGround-true Value : " << mGroundTruthValue << std::endl;
     }
-    std::cout << std::endl;
+    std::cout << "[ESTIMATION] RMSE : " << pow((sumOfSquaredError / mDatasetRow) , 0.5) << std::endl << std::endl;
 }

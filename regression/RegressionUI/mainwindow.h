@@ -27,12 +27,6 @@ public:
     ~MainWindow();
 
 private slots:
-    void initializeDisplay();
-    void initializeGraph();
-    void updateDisplay();
-    void updateGraph();
-    void loadData(std::string& dataPath);
-    void vec2tensor();
     void on_BT_MODEL_SAVE_clicked();
     void on_BT_MODEL_LOAD_clicked();
     void on_BT_DATASET_LOAD_clicked();
@@ -81,6 +75,12 @@ private:
             return x;
         }
     };
+    void initializeDisplay();
+    void initializeGraph();
+    void updateDisplay();
+    void updateGraph();
+    void loadData(std::string& dataPath);
+    void vec2tensor();
 
     Ui::MainWindow* ui;
     torch::Tensor mDataTensors;
@@ -95,6 +95,8 @@ private:
     int mEstimateIndex;
     float mLearningRate;
     float mMiniBatchLoss;
+    float mMiniBatchLossMin;
+    float mMiniBatchLossMax;
     float mLossMean;
     float mMSE;
     float mEstimatedValue;
