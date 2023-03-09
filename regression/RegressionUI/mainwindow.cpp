@@ -18,6 +18,8 @@ MainWindow::MainWindow(QWidget* parent)
     , mEstimateIndex(0)
     , mLearningRate(DEFAULT_LEARNING_RATE)
     , mMiniBatchLoss(0.0)
+    , mMiniBatchLossMin(0.0)
+    , mMiniBatchLossMax(0.0)
     , mLossMean(0.0)
     , mMSE(0.0)
     , mEstimatedValue(0.0)
@@ -48,13 +50,15 @@ void MainWindow::initializeDisplay()
 
 void MainWindow::initializeGraph()
 {
-    QPen myPen, dotPen;
+    QPen myPen, dotPen, dashPen;
     myPen.setWidthF(1.5);
     myPen.setColor(Qt::blue);
     dotPen.setStyle(Qt::DotLine);
-    dotPen.setWidth(20);
-    dotPen.setWidthF(2);
-    dotPen.setColor(Qt::gray);
+    dotPen.setWidth(1);
+    dotPen.setColor(QColor(180,180,180));
+    dashPen.setStyle(Qt::DashLine);
+    dashPen.setWidth(2);
+    dashPen.setColor(Qt::gray);
 
     QSharedPointer<QCPAxisTickerTime> timeTicker(new QCPAxisTickerTime);
     timeTicker->setTimeFormat("%m:%s");
@@ -65,8 +69,16 @@ void MainWindow::initializeGraph()
     ui->QCP_LEARNING->legend->setVisible(true);
     ui->QCP_LEARNING->legend->setFont(QFont("Helvetica", 9));
     ui->QCP_LEARNING->addGraph();
-    ui->QCP_LEARNING->graph(0)->setPen(myPen);
-    ui->QCP_LEARNING->graph(0)->setName("Loss - Mean");
+    ui->QCP_LEARNING->graph(0)->setPen(dotPen);
+    ui->QCP_LEARNING->graph(0)->setName("Loss - Band");
+    ui->QCP_LEARNING->graph(0)->setBrush(QBrush(QColor(255,50,30,20)));
+    ui->QCP_LEARNING->addGraph();
+    ui->QCP_LEARNING->legend->removeItem(ui->QCP_LEARNING->legend->itemCount()-1);
+    ui->QCP_LEARNING->graph(1)->setPen(dotPen);
+    ui->QCP_LEARNING->graph(0)->setChannelFillGraph(ui->QCP_LEARNING->graph(1));
+    ui->QCP_LEARNING->addGraph();
+    ui->QCP_LEARNING->graph(2)->setPen(myPen);
+    ui->QCP_LEARNING->graph(2)->setName("Loss - Mean");
 
     ui->QCP_ESTIMATE->legend->setVisible(true);
     ui->QCP_ESTIMATE->legend->setFont(QFont("Helvetica", 9));
@@ -74,7 +86,7 @@ void MainWindow::initializeGraph()
     ui->QCP_ESTIMATE->graph(0)->setPen(myPen);
     ui->QCP_ESTIMATE->graph(0)->setName("Estimated value");
     ui->QCP_ESTIMATE->addGraph();
-    ui->QCP_ESTIMATE->graph(1)->setPen(dotPen);
+    ui->QCP_ESTIMATE->graph(1)->setPen(dashPen);
     ui->QCP_ESTIMATE->graph(1)->setName("Ground-true");
 
     ui->QCP_LEARNING->xAxis->setRange(0, mEpochs);
@@ -91,7 +103,10 @@ void MainWindow::updateDisplay()
 
 void MainWindow::updateGraph()
 {
-    ui->QCP_LEARNING->graph(0)->addData(mCurrentEpoch, mMiniBatchLoss);
+    ui->QCP_LEARNING->graph(0)->addData(mCurrentEpoch, mMiniBatchLossMax);
+    ui->QCP_LEARNING->graph(1)->addData(mCurrentEpoch, mMiniBatchLossMin);
+    ui->QCP_LEARNING->graph(2)->addData(mCurrentEpoch, mMiniBatchLoss);
+
     ui->QCP_ESTIMATE->graph(0)->addData(mEstimateIndex, mEstimatedValue);
     ui->QCP_ESTIMATE->graph(1)->addData(mEstimateIndex, mGroundTruthValue);
 
@@ -166,6 +181,8 @@ void MainWindow::vec2tensor()
 void MainWindow::on_BT_LEARNING_clicked()
 {
     ui->QCP_LEARNING->graph(0)->data()->clear();
+    ui->QCP_LEARNING->graph(1)->data()->clear();
+    ui->QCP_LEARNING->graph(2)->data()->clear();
 
     mBatchSize = ui->LE_PARAMS_BATCH_SIZE->text().toInt();
     mLearningRate = ui->LE_PARAMS_LAERNING_RATE->text().toFloat();
@@ -174,8 +191,8 @@ void MainWindow::on_BT_LEARNING_clicked()
     std::cout << "[PARAMETERS] Learning rate\t : " << mLearningRate << std::endl;
     std::cout << "[PARAMETERS] Epochs\t\t\t : " << mEpochs << std::endl;
 
+    net = std::make_shared<Net>(mInputDimension, mOutputDimension);
     torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(mLearningRate));
-
     auto inputs = torch::randn({ mBatchSize, mInputDimension });
     auto target = torch::randn({ mBatchSize, mOutputDimension });
     auto datasets = torch::data::datasets::TensorDataset(mDataTensors);
@@ -186,6 +203,8 @@ void MainWindow::on_BT_LEARNING_clicked()
     {
         int iteration = 0;
         mLossMean = 0;
+        mMiniBatchLossMin = 10000;
+        mMiniBatchLossMax = 0;
         auto dataLoader = torch::data::make_data_loader(datasets, torch::data::DataLoaderOptions().batch_size(mBatchSize));
         for (auto& batch : *dataLoader)
         {
@@ -208,6 +227,14 @@ void MainWindow::on_BT_LEARNING_clicked()
             optimizer.step();
             mLossMean += mMiniBatchLoss;
             iteration++;
+            if(mMiniBatchLoss < mMiniBatchLossMin)
+            {
+                mMiniBatchLossMin = mMiniBatchLoss;
+            }
+            if(mMiniBatchLoss > mMiniBatchLossMax)
+            {
+                mMiniBatchLossMax = mMiniBatchLoss;
+            }
             updateDisplay();
         }
         mLossMean /= iteration;
